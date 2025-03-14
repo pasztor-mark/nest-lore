@@ -5,11 +5,16 @@ import {UserModule} from "../user/user.module";
 import {JwtModule} from "@nestjs/jwt";
 import {jwtConstants} from "./auth.constants";
 import {JwtStrategy} from "./jwt.strategy";
+import {PassportModule} from "@nestjs/passport";
+import {PrismaService} from "../prisma.service";
+import {AuthController} from "./auth.controller";
+import {JwtBlacklistUtil} from "./jwt-blacklist.util";
 
 @Module({
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, LocalStrategy, JwtStrategy, PrismaService, JwtBlacklistUtil],
+  controllers: [AuthController],
   exports: [AuthService],
-  imports: [AuthService, UserModule, JwtModule.register({
+  imports: [UserModule, PassportModule, JwtModule.register({
     secret: jwtConstants.secret,
     signOptions: {
       expiresIn: "60s",

@@ -35,3 +35,8 @@ ne felejtsük el a src mappában a `prisma.service.ts` fájlt létérehozni
   - útvonal kiosztásért felelős komponens, az elérési útvonalakat átirányítja a service-ben megszabott funkciókra
 - **Service**
   - a kiosztott útvonalakat kiszolgálja, itt történik a backend logika
+ezeket már ritkábban kell használni
+- **Strategy**
+  - authnál használt middleware logika
+- **Decorator**
+  - Kérési paraméterek, jelölése @[Decorator]

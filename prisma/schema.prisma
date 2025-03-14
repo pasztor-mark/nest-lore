@@ -52,7 +52,6 @@ model Assignment {
   teacherId Int //egy assignmentet csak egy tanár ad ki
 
   students  StudentAssignment[]
-  student   Student?            @relation(fields: [studentId], references: [id])
   studentId Int?
 }
 
@@ -62,7 +61,6 @@ model Student {
   id                 Int                 @id @default(autoincrement())
   gradeLevel         Int
   user               User                @relation(fields: [id], references: [id], onDelete: Cascade)
-  assignments        Assignment[]
   studentAssignments StudentAssignment[]
 }
 

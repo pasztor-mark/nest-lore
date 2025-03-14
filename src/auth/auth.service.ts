@@ -1,4 +1,4 @@
-import {Injectable} from '@nestjs/common';
+import {ConflictException, Injectable, Req, UnauthorizedException} from '@nestjs/common';
 import {UserService} from "../user/user.service";
 import * as bcrypt from 'bcrypt'
 import {Assignment, TeacherSubject, User} from "@prisma/client";
@@ -7,10 +7,11 @@ import {LoginDto} from "./dtos/login.dto";
 import {RegisterDto} from "./dtos/register.dto";
 import {PrismaService} from "../prisma.service";
 import {Subject} from "rxjs";
+import {JwtBlacklistUtil} from "./jwt-blacklist.util";
 
 @Injectable()
 export class AuthService {
-    constructor(private readonly userService: UserService, private readonly jwtService: JwtService, private readonly prisma: PrismaService) {
+    constructor(private readonly jwtBlacklistUtil: JwtBlacklistUtil, private readonly userService: UserService, private readonly jwtService: JwtService, private readonly prisma: PrismaService) {
 
     }
 
@@ -28,17 +29,21 @@ export class AuthService {
             return null;
         }
         const payload = {email: user.email, sub: user.id};
-        return {
-            token: this.jwtService.sign(payload)
+        const token = this.jwtService.sign(payload);
+        if (!this.jwtBlacklistUtil.isTokenBlacklisted(token)) {
+            return {
+                token
+            }
+            throw new UnauthorizedException()
         }
     }
 
     async register(registerData: RegisterDto) {
         const user = await this.userService.findOneByEmail(registerData.email);
         if (user) {
-            return null
+            throw new ConflictException
         }
-        const hashedPassword = await bcrypt.hash(registerData.password);
+        const hashedPassword = await bcrypt.hash(registerData.password, 12);
         if (hashedPassword) {
             const userData = {
                 email: registerData.email,
@@ -47,8 +52,9 @@ export class AuthService {
                 firstName: registerData.firstName,
                 lastName: registerData.lastName,
             }
+            let user;
             if (registerData.role === "TEACHER") {
-                await this.prisma.user.create({
+                user = await this.prisma.user.create({
                     data: {
                         ...userData,
                         teacher: {
@@ -66,16 +72,12 @@ export class AuthService {
                     }
 
                 })
-            }
-            else {
-                await this.prisma.user.create({
+            } else {
+                user = await this.prisma.user.create({
                     data: {
                         ...userData,
                         student: {
                             create: {
-                                assignments: {
-                                    create: []
-                                },
                                 studentAssignments: {
                                     create: []
                                 },
@@ -86,7 +88,26 @@ export class AuthService {
                 })
             }
             const payload = {email: registerData.email, sub: user.id};
+            const token = this.jwtService.sign(payload);
+            if (!this.jwtBlacklistUtil.isTokenBlacklisted(token)) {
+                return {
+                    token
+                }
+            }
+                throw new UnauthorizedException()
+
         }
+    }
+
+    async self(id: number) {
+        return this.userService.getSelf(id)
+    }
+    async logout(req) {
+        const auth = req.headers.authorization?.split(' ')[1]
+        if (!auth) {
+            throw new UnauthorizedException();
+        }
+        this.jwtBlacklistUtil.addBlacklistedToken(auth);
     }
 
 }
