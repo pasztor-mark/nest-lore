@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL") //envet ne felejtsük el másolni
+}
+
+//Enumok
+// Az enumokat akkor éri meg használni, ha több előre megszabott érték van.
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum Subject {
+  Maths
+  Science
+  Compsci
+  History
+  Literature
+  English
+}
+
+//Alap modellek
+model User {
+  id        Int    @id @default(autoincrement()) //összes inline dekorátor, hogy elsődleges kulcsot állítson be
+  firstName String
+  lastName  String
+  email     String @unique //unique jelző, ha nem lehet két azonos értékű elem az adatbázisban
+  password  String
+
+  role    Role //tanár vagy diák
+  teacher Teacher? //opcionális tanár profil
+  student Student? //opcionális diák  profil
+}
+
+model Assignment {
+  id      Int     @id @default(autoincrement())
+  name    String
+  price   Int
+  subject Subject //assignment tantárgya
+
+  teacher   Teacher @relation(fields: [teacherId], references: [id])
+  teacherId Int //egy assignmentet csak egy tanár ad ki
+
+  students  StudentAssignment[]
+  student   Student?            @relation(fields: [studentId], references: [id])
+  studentId Int?
+}
+
+//Role alapján csoportosított felhasználói profilok.
+//Egy tanárnak nincs meg minden tulajdonság, ami a diáknak megvan, vice versa
+model Student {
+  id                 Int                 @id @default(autoincrement())
+  gradeLevel         Int
+  user               User                @relation(fields: [id], references: [id], onDelete: Cascade)
+  assignments        Assignment[]
+  studentAssignments StudentAssignment[]
+}
+
+model Teacher {
+  id          Int              @id @default(autoincrement())
+  user        User             @relation(fields: [id], references: [id], onDelete: Cascade) //1-1 relation, mivel 1 felhasználónak csak 1 tanári profilja lehet
+  description String
+  subjects    TeacherSubject[] //1:n relation
+  assignments Assignment[]
+}
+
+// Relációs táblák
+model StudentAssignment {
+  student      Student    @relation(fields: [studentId], references: [id])
+  studentId    Int
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  assignmentId Int
+
+  @@id([studentId, assignmentId]) //sablon kompozitkulcs a n-m kapcsolathoz
+}
+
+model TeacherSubject {
+  id        Int     @id @default(autoincrement())
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacherId Int
+  subject   Subject
+
+  @@unique([teacherId, subject]) //egy tanárhoz nem tartozhat duplikált subject
+}
